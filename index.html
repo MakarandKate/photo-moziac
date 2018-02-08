@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Photo Moziac</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css">
+
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <h1>Photo Moziac</h1>
+    <input id="inp-img" type="file" accept="image/*" name="img" />
+    <input id="inp-feed" type="file" multiple accept="image/*" name="feed[]" onchange="feedLoaded()" />
+    <div id="div-feed-container"></div>
+
+    <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+    <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+        var pixels=[],
+        tileSize=20;
+        function initState(){
+
+        }
+        function feedLoaded(){
+          initState();
+          var files=$('#inp-feed')[0].files;
+          loadImages(files,0,function(){
+            sliceImage();
+          });
+        }
+        function loadImages(files,pointer,callback){
+          if(files.length>pointer){
+            var file=files[pointer];
+            var fileReader = new FileReader();
+            fileReader.readAsDataURL(file);
+            fileReader.onload=function(e){
+              var img=document.createElement("img");
+              img.src=e.target.result;
+              $(img).attr("data-feed",files.length);
+              img.onload=function(){
+                $("#div-feed-container").append($(img));
+                setTimeout(function(){
+                  var imgHeight=$("img[data-feed='"+files.length+"']").height(),
+                  imgWidth=$("img[data-feed='"+files.length+"']").width();
+                  var d=0;var sx=0;var sy=0;
+                  var canvas=document.createElement('canvas');
+                    if(imgWidth<imgHeight){
+                      d=imgWidth;sx=(imgHeight-imgWidth)/2;sy=0;
+                    }else{
+                      d=imgHeight;sx=0;sy=(imgWidth-imgHeight)/2;
+                    }
+                  canvas.style.height=d;
+                  canvas.style.width=d;
+
+                  $("#div-feed-container").append($(canvas));
+                  canvas.setAttribute("height",d);
+                  canvas.setAttribute("width",d);
+                  var ctx=canvas.getContext("2d");
+                  ctx.drawImage(img, -sy, -sx);  
+                  setTimeout(function(){
+                    var imgData=ctx.getImageData(0,0,canvas.offsetHeight,canvas.offsetWidth);
+                    var avgR=0,avgG=0,avgB=0;
+                    for(var j=0;j<imgData.data.length;j+=4){
+                      avgR=avgR+imgData.data[j];
+                      avgG=avgG+imgData.data[j+1];
+                      avgB=avgB+imgData.data[j+2];
+                    }
+                    
+                    pixels.push({
+                      r:Math.ceil(avgR/imgData.data.length-1),
+                      b:Math.ceil(avgB/imgData.data.length-1),
+                      g:Math.ceil(avgG/imgData.data.length-1),
+                      data:imgData
+                    });
+                    $("#div-feed-container").html("");
+                    loadImages(files,(++pointer),callback);
+                  },50);
+                },50);
+              }
+            }
+          }else{
+            callback();
+          }
+        }
+
+        function sliceImage(){
+            var fileReader=new FileReader();
+            fileReader.readAsDataURL($("#inp-img")[0].files[0]);
+            fileReader.onload=function(e){
+              var img=document.createElement("img");
+              img.src=e.target.result;
+              img.onload=function(){
+                $("#div-feed-container").append($(img));
+                setTimeout(function(){
+                  var canvas=document.createElement("canvas");
+                  canvas.style.height=img.offsetHeight;
+                  canvas.style.width=img.offsetWidth;
+                  $("#div-feed-container").append($(canvas));
+                  canvas.setAttribute("height",img.offsetHeight);
+                  canvas.setAttribute("width",img.offsetWidth);
+                  var ctx=canvas.getContext("2d");
+                  ctx.drawImage(img, 0, 0);
+                  setTimeout(function(){
+                    var row=Math.ceil(canvas.offsetWidth/tileSize);
+                    var col=Math.ceil(canvas.offsetHeight/tileSize);
+                    for(var i=0;i<row;i++){
+                      for(var j=0;j<col;j++){
+                        var c=document.createElement('canvas');
+                        c.setAttribute("height",tileSize);
+                        c.setAttribute("width",tileSize);
+                        var ctx1=c.getContext("2d");
+                        var imgDataM=ctx.getImageData((i*tileSize),(j*tileSize),(i*tileSize)+tileSize,(j*tileSize)+tileSize);
+                        ctx1.putImageData(imgDataM,0,0);
+                        var imgData=ctx1.getImageData(0,0,tileSize,tileSize);
+                        console.log(imgData);
+                      }
+                    }
+                  },50);
+                },50);
+              }
+            };
+        }
+    </script>
+  </body>
+</html>
